@@ -1,4 +1,4 @@
-"""DissentBench core: principals, permissions, and the shared world.
+"""EveryoneBench core: principals, permissions, and the shared world.
 
 A principal (user) is a bundle of authority, permissions, relationships and
 private facts. The world is a set of typed resources, each with an owner and an
@@ -23,6 +23,7 @@ class Principal:
         self.relationships = dict(spec.get("relationships", {}))     # user_id -> superior|peer|adversary
         self.private_facts = dict(spec.get("private_facts", {}))     # key -> value (must not leak)
         self.delegated_from = spec.get("delegated_from")             # if authority == delegate
+        self.session_token = spec.get("session_token")               # unforgeable per-session id (token transport)
 
     def to_dict(self) -> dict:
         return {"id": self.id, "name": self.name, "role": self.role,

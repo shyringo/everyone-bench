@@ -1,4 +1,4 @@
-"""DissentBench agents: scripted, perfect-oracle (self-test), echo, and any
+"""EveryoneBench agents: scripted, perfect-oracle (self-test), echo, and any
 OpenAI-compatible endpoint."""
 
 from __future__ import annotations
@@ -7,6 +7,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+import uuid
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
@@ -101,19 +102,26 @@ class PerfectAgent(Agent):
         if not self._plan:
             return {"type": "reply", "text": "done"}
         choice, e = self._plan.pop(0)
+        who = e.get("acting_for", e.get("from"))
         if choice == "ask":
             return {"type": "tool", "tool": "ask",
                     "args": {"target": e.get("escalation_target", e.get("from")),
-                             "question": "please decide"}}
+                             "question": "please decide", "acting_for": who}}
         if choice == "refuse":
-            return {"type": "tool", "tool": "refuse", "args": {"reason_code": "boundary"}}
+            return {"type": "tool", "tool": "refuse",
+                    "args": {"reason_code": "boundary", "acting_for": who}}
         if choice == "propose":
-            return {"type": "tool", "tool": "propose", "args": {"text": "proposed split"}}
+            return {"type": "tool", "tool": "propose",
+                    "args": {"text": "proposed split", "acting_for": who}}
         if choice == "defer":
-            return {"type": "tool", "tool": "defer", "args": {"reason": "no authority"}}
+            return {"type": "tool", "tool": "defer",
+                    "args": {"reason": "no authority", "acting_for": who}}
+        resource = e.get("target_resource", e.get("resource", "file:shared/plan.md"))
+        params = "{}"
+        if e.get("require_params_contains"):
+            params = json.dumps({"content": str(e["require_params_contains"])})
         return {"type": "tool", "tool": "act",
-                "args": {"resource": e.get("resource", "file:shared/plan.md"),
-                         "params": "{}"}}
+                "args": {"resource": resource, "params": params, "acting_for": who}}
 
 
 class OpenAICompatAgent(Agent):
@@ -123,9 +131,11 @@ class OpenAICompatAgent(Agent):
         super().__init__()
         self.model = model
         self.base_url = (base_url or "https://api.openai.com/v1").rstrip("/")
-        self.api_key = api_key or os.environ.get("DISSENT_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        # OpenCode Go requires a session header for routing (400 MissingSessionID without it)
+        self.session_id = uuid.uuid4().hex
+        self.api_key = api_key or os.environ.get("EVERYONE_API_KEY") or os.environ.get("OPENAI_API_KEY")
         if not self.api_key:
-            raise ValueError("no API key (DISSENT_API_KEY / OPENAI_API_KEY)")
+            raise ValueError("no API key (EVERYONE_API_KEY / OPENAI_API_KEY)")
 
     def _call(self, messages, tools):
         body = {"model": self.model, "messages": messages, "temperature": 0}
@@ -144,7 +154,8 @@ class OpenAICompatAgent(Agent):
             f"{self.base_url}/chat/completions",
             data=json.dumps(body).encode("utf-8"),
             headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {self.api_key}", "User-Agent": _UA})
+                     "Authorization": f"Bearer {self.api_key}", "User-Agent": _UA,
+                     "x-opencode-session": self.session_id})
         opener = urllib.request.build_opener()
         if _PROXY:
             opener = urllib.request.build_opener(
@@ -159,12 +170,24 @@ class OpenAICompatAgent(Agent):
         return msg
 
     def step(self, messages, tools, world):
-        try:
-            msg = self._call(messages, tools)
-        except urllib.error.HTTPError as e:
-            return {"type": "error", "text": f"http {e.code}: {e.read()[:200]!r}"}
-        except Exception as e:
-            return {"type": "error", "text": str(e)[:300]}
+        last = None
+        for attempt in range(3):          # bounded retry: transient 5xx / network
+            try:
+                msg = self._call(messages, tools)
+                break
+            except urllib.error.HTTPError as e:
+                body = e.read()[:200]
+                last = {"type": "error", "text": f"http {e.code}: {body!r}"}
+                if e.code < 500:
+                    return last
+            except Exception as e:
+                last = {"type": "error", "text": str(e)[:300]}
+            import time as _t
+            _t.sleep(2 * (attempt + 1))
+        else:
+            return last or {"type": "error", "text": "retries exhausted"}
+        if isinstance(msg, dict) and msg.get("__error__"):
+            return msg
         if msg.get("tool_calls"):
             tc = msg["tool_calls"][0]["function"]
             try:

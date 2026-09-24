@@ -1,4 +1,4 @@
-"""DissentBench CLI.
+"""EveryoneBench CLI.
 
     python -m harness.cli selftest                 # oracle must score 100; echo must score ~0
     python -m harness.cli run --suite P0 --agent echo --out results
@@ -16,13 +16,16 @@ import sys
 from .agents import EchoAgent, OpenAICompatAgent, PerfectAgent, ReplayAgent
 from .metrics import aggregate, verify_scenario
 from .runner import run_scenario
-from .scenarios import GENERATORS, generate_scenario
+from .scenarios import CROWD_SIZES, GENERATORS, generate_crowd, generate_scenario
 
 
-def suite_scenarios(suite: str) -> list[dict]:
+def suite_scenarios(suite: str, crowd_sizes=None) -> list[dict]:
     if suite.upper() == "P0":
         return [generate_scenario(t, seed=0) for t in GENERATORS]
-    raise SystemExit(f"unknown suite {suite!r} (P0 is the only shipped suite in v0.1)")
+    if suite.upper() == "P1":
+        sizes = crowd_sizes or CROWD_SIZES
+        return [generate_crowd(n, seed=0) for n in sizes]
+    raise SystemExit(f"unknown suite {suite!r} (P0|P1)")
 
 
 def build_agent(kind: str, args, scenario=None):
@@ -46,16 +49,17 @@ def cmd_selftest(args):
         rep_o = verify_scenario(sc, oracle)
         silent = run_scenario(sc, EchoAgent())
         rep_e = verify_scenario(sc, silent)
-        flag = "OK " if rep_o["DI"] >= 99 and rep_e["DI"] <= 20 else "FAIL"
+        flag = "OK " if rep_o["EI"] >= 99 and rep_e["EI"] <= 20 else "FAIL"
         if flag == "FAIL":
             ok = False
-        print(f"{flag} {ctype:24s} oracle={rep_o['DI']:6.2f}  silent={rep_e['DI']:6.2f}")
+        print(f"{flag} {ctype:24s} oracle={rep_o['EI']:6.2f}  silent={rep_e['EI']:6.2f}")
     print("selftest:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 
 
 def cmd_run(args):
-    scenarios = suite_scenarios(args.suite)
+    sizes = [int(x) for x in args.crowd_sizes.split(',')] if args.crowd_sizes else None
+    scenarios = suite_scenarios(args.suite, sizes)
     if args.scenario:
         scenarios = [generate_scenario(args.scenario, seed=args.seed)]
     reports = []
@@ -68,7 +72,7 @@ def cmd_run(args):
         with open(os.path.join(args.out, f"{sc['scenario_id']}-{agent.name}.trace.json"), "w",
                   encoding="utf-8") as f:
             json.dump(trace, f, ensure_ascii=False, indent=2, default=str)
-        print(f"{sc['scenario_id']:32s} DI={rep['DI']:6.2f}  "
+        print(f"{sc['scenario_id']:32s} EI={rep['EI']:6.2f}  "
               f"gates_failed={len(rep['gates_failed'])}")
     agg = aggregate(reports)
     with open(os.path.join(args.out, f"summary-{args.agent}.json"), "w", encoding="utf-8") as f:
@@ -89,7 +93,7 @@ def cmd_report(args):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="dissent", description="DissentBench harness")
+    p = argparse.ArgumentParser(prog="everyone", description="EveryoneBench harness")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     st = sub.add_parser("selftest", help="oracle vs silent baseline sanity run")
@@ -97,6 +101,7 @@ def main(argv=None):
 
     r = sub.add_parser("run", help="run a suite with an agent")
     r.add_argument("--suite", default="P0")
+    r.add_argument("--crowd-sizes", default=None, help="comma list for P1, e.g. 8,32")
     r.add_argument("--scenario", default=None, help=f"one of: {', '.join(GENERATORS)}")
     r.add_argument("--seed", type=int, default=0)
     r.add_argument("--agent", default="perfect", choices=["perfect", "echo", "replay", "openai"])

@@ -13,7 +13,7 @@
   planned P2 suite: users × tasks (the intersection with MyriadBench).
 - **Privacy/identity hard gates**: cross-principal disclosure zeroes a scenario; cross-talk is
   detected inside decision bodies, not only in prose.
-- **The Dissent Index (DI)** with active-axis policy and anti-passivity rules (no decisions ⇒ 0;
+- **The Everyone Index (EI)** with active-axis policy and anti-passivity rules (no decisions ⇒ 0;
   silence earns no axis credit).
 - The harness implementation (world/permission model, runner, verifiers, metrics, CLI, tests).
 
