@@ -1,7 +1,10 @@
 __pycache__/
 *.pyc
 .env
-results/
+results/**/*.tmp
+results/*.tmp
+!results/*.trace.json
+!results/*.json
 data/generated/
 data/pilot/
 .DS_Store

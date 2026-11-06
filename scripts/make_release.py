@@ -65,7 +65,7 @@ def main() -> int:
 
     subprocess.run(["git", "init", "-b", "main"], cwd=dest, check=True, capture_output=True)
     subprocess.run(["git", "add", "-A"], cwd=dest, check=True, capture_output=True)
-    subprocess.run(["git", "-c", "user.name=shy", "-c", "user.email=shyringo@163.com",
+    subprocess.run(["git", "-c", "user.name=shy", "-c", "user.email=releases@example.com",
                     "commit", "-m",
                     "EveryoneBench v0.1: multi-principal conflict benchmark with identity transports"],
                    cwd=dest, check=True, capture_output=True)

@@ -1,0 +1,18 @@
+{
+  "model": "deepseek-v4-flash",
+  "suite": "P1",
+  "aggregate": {
+    "EI": 17.62,
+    "scenarios": 2,
+    "by_conflict_type": {
+      "crowd_interleaving": 17.62
+    },
+    "axes": {
+      "arbitrate": 0.0457,
+      "escalate": 0.0092,
+      "detect": 0.0,
+      "identity": 0.7343,
+      "autonomy": 0.5
+    }
+  }
+}
