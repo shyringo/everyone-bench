@@ -8,6 +8,9 @@ context (assistants for families/teams/clients, multi-tenant copilots, permissio
 and researchers who need decision-level numbers rather than vibes. If your agent only ever talks to
 one user, this benchmark is not aimed at you.
 
+*Quick links:* [Quick Start](#quick-start) · [What ships](#what-ships) · [Honest limits](#honest-limits) ·
+[Contributing](CONTRIBUTING.md) · [Numbers provenance](docs/numbers-provenance.md) · 中文：`docs/README-zh.md`
+
 ## The problem
 
 A model never sees "users" — it sees tokens, and in every mainstream template the speaker is just
@@ -71,18 +74,46 @@ run per transport on 2026-09-24; the impersonation column was read back out of
 
 ## Quick Start
 
+**Requirements:** Python 3.10+. **No third-party dependencies** — no `pip install`, no network, no API
+key for the commands below. Scenarios live in `data/seeds/` (plain JSON, one file per conflict type);
+the harness is in `harness/`. The whole thing takes *seconds*, not minutes.
+
 ```bash
-# Python 3.10+, zero dependencies
+git clone https://github.com/shyringo/everyone-bench.git
 cd everyone-bench
 
-python -m harness.cli selftest                                   # oracle 100.00 vs silent 0.00
-python -m harness.cli run --suite P0 --agent perfect --out results
-python -m harness.cli run --suite P1 --crowd-sizes 8 --agent perfect --out results
-python -m unittest discover -s tests                             # 16 tests
+python -m harness.cli selftest                                   # 9 scenarios, oracle 100 vs silent 0
+python -m harness.cli run --suite P0 --agent perfect --out results/local
+python -m harness.cli run --suite P1 --crowd-sizes 8 --agent perfect --out results/local
+python -m unittest discover -s tests                             # 16 tests, ~0.01s
 ```
 
+`--out results/local` (any fresh directory works) keeps the committed pilot traces in `results/`
+untouched, so `git status` stays clean.
+
+**What you should see** (real output, P0 with the oracle agent — all 9 scenarios, EI 100):
+
+```
+resource_contention_1            EI=100.00  gates_failed=0
+constraint_incompatible_1        EI=100.00  gates_failed=0
+priority_order_1                 EI=100.00  gates_failed=0
+authority_conflict_1             EI=100.00  gates_failed=0
+privacy_boundary_1               EI=100.00  gates_failed=0
+delegation_scope_1               EI=100.00  gates_failed=0
+identity_confusion_1             EI=100.00  gates_failed=0
+irreconcilable_1                 EI=100.00  gates_failed=0
+impersonation_1                  EI=100.00  gates_failed=0
+{ "EI": 100.0, "scenarios": 9, "by_conflict_type": { … }, "axes": { … } }
+```
+
+The oracle scoring 100 is the sanity check that the rubric is self-consistent — it is **not** a model
+result. The `silent` agent (which answers nothing) must score 0, and every scenario gate must fire.
+
 Real-model pilot (needs an OpenAI-compatible key): `python scripts/run_pilot.py --suite P0` ·
-`--suite P1 --crowd-sizes 8,32` · `--suite P2` (identity-transport matrix).
+`--suite P1 --crowd-sizes 8,32` · `--suite P2` (identity-transport matrix). Set `EVERYONE_API_KEY`
+(or `OPENAI_API_KEY`); a full P0+P1+P2 sweep costs real tokens — see [Cost](#honest-limits).
+
+中文说明：`docs/README-zh.md`。
 
 ## What ships
 
@@ -112,13 +143,13 @@ Metrics: `docs/metrics.md` · Landscape review: `docs/survey.md` · Provenance: 
 
 ## License & Citation
 
-Code MIT, data CC BY 4.0 (`LICENSE`).
+Code: MIT (`LICENSE`). Scenario data and pilot traces: CC BY 4.0 (`DATA-LICENSE.md`).
 
 ```bibtex
 @software{everyonebench2026,
   title  = {EveryoneBench: Many Users. Many Tasks. One Agent.},
   author = {EveryoneBench contributors},
   year   = {2026},
-  url    = {https://github.com/<you>/everyone-bench}
+  url    = {https://github.com/shyringo/everyone-bench}
 }
 ```

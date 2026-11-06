@@ -23,7 +23,7 @@ AI 的终态是一个模型同时服务**许多个委托人**:家人、同事、
 
 ```bash
 python -m harness.cli selftest                       # oracle vs 静默基线
-python -m harness.cli run --suite P0 --agent perfect --out results    # 免 key 演示
+python -m harness.cli run --suite P0 --agent perfect --out results/local  # 免 key 演示，不覆盖已发布的 trace
 python -m unittest discover -s tests                 # 13 个测试
 ```
 
