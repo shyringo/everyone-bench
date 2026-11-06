@@ -5,6 +5,8 @@ results/**/*.tmp
 results/*.tmp
 !results/*.trace.json
 !results/*.json
+# 本地跑出来的输出（README Quick Start 用这个目录）
+results/local/
 data/generated/
 data/pilot/
 .DS_Store
